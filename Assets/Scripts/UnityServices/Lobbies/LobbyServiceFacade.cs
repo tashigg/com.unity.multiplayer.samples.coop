@@ -455,8 +455,11 @@ namespace Unity.BossRoom.UnityServices.Lobbies
                 }
             }
 
+            // TNT doesn't support relay. If/when it does we'll need to reconsider this change.
+            var shouldLock = false;
+
             //we would want to lock lobbies from appearing in queries if we're in relay mode and the relay isn't fully set up yet
-            var shouldLock = string.IsNullOrEmpty(m_LocalLobby.RelayJoinCode);
+            // var shouldLock = string.IsNullOrEmpty(m_LocalLobby.RelayJoinCode);
 
             try
             {

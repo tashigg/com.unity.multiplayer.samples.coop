@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Unity.BossRoom.UnityServices.Lobbies;
 using Unity.Multiplayer.Samples.Utilities;
+using Tashi.NetworkTransport;
 using UnityEngine;
 using VContainer;
 
@@ -13,11 +14,12 @@ namespace Unity.BossRoom.ConnectionManagement
     /// </summary>
     class ClientConnectingState : OnlineState
     {
+        ConnectionMethodBase m_ConnectionMethod;
+
         [Inject]
         protected LobbyServiceFacade m_LobbyServiceFacade;
         [Inject]
         protected LocalLobby m_LocalLobby;
-        ConnectionMethodBase m_ConnectionMethod;
 
         public ClientConnectingState Configure(ConnectionMethodBase baseConnectionMethod)
         {
@@ -30,6 +32,15 @@ namespace Unity.BossRoom.ConnectionManagement
 #pragma warning disable 4014
             ConnectClientAsync();
 #pragma warning restore 4014
+
+            // Clients need to be able to discover each other through the
+            // Lobby's user data before they're considered connected.
+            if (m_LobbyServiceFacade.CurrentUnityLobby != null)
+            {
+                m_LobbyServiceFacade.BeginTracking();
+            }
+
+            m_LocalLobby.changed += OnLobbyChanged;
         }
 
         public override void Exit() { }
@@ -83,6 +94,19 @@ namespace Unity.BossRoom.ConnectionManagement
                 Debug.LogException(e);
                 StartingClientFailedAsync();
                 throw;
+            }
+        }
+
+        private void OnLobbyChanged(LocalLobby lobby)
+        {
+            var transport = (TashiNetworkTransport)m_ConnectionManager.NetworkManager.NetworkConfig.NetworkTransport;
+            foreach (var user in m_LocalLobby.LobbyUsers.Values)
+            {
+                transport.AddAddressBookEntry(user.AddressBookEntry.GetValueOrDefault());
+                if (user.IsHost)
+                {
+                    transport.HostPublicKey = user.AddressBookEntry?.PublicKey;
+                }
             }
         }
     }

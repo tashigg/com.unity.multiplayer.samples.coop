@@ -21,6 +21,8 @@ namespace UUnity.BossRoom.ConnectionManagement
         ProfileManager m_ProfileManager;
         [Inject]
         LocalLobby m_LocalLobby;
+        [Inject]
+        LocalLobbyUser m_LocalUser;
 
         const string k_MainMenuSceneName = "MainMenu";
 
@@ -45,7 +47,7 @@ namespace UUnity.BossRoom.ConnectionManagement
 
         public override void StartClientLobby(string playerName)
         {
-            var connectionMethod = new ConnectionMethodRelay(m_LobbyServiceFacade, m_LocalLobby, m_ConnectionManager, m_ProfileManager, playerName);
+            var connectionMethod = new ConnectionMethodMesh(m_LobbyServiceFacade, m_LocalLobby, m_LocalUser, m_ConnectionManager, m_ProfileManager, playerName);
             m_ConnectionManager.m_ClientReconnecting.Configure(connectionMethod);
             m_ConnectionManager.ChangeState(m_ConnectionManager.m_ClientConnecting.Configure(connectionMethod));
         }
@@ -58,7 +60,7 @@ namespace UUnity.BossRoom.ConnectionManagement
 
         public override void StartHostLobby(string playerName)
         {
-            var connectionMethod = new ConnectionMethodRelay(m_LobbyServiceFacade, m_LocalLobby, m_ConnectionManager, m_ProfileManager, playerName);
+            var connectionMethod = new ConnectionMethodMesh(m_LobbyServiceFacade, m_LocalLobby, m_LocalUser, m_ConnectionManager, m_ProfileManager, playerName);
             m_ConnectionManager.ChangeState(m_ConnectionManager.m_StartingHost.Configure(connectionMethod));
         }
     }

@@ -387,6 +387,12 @@
       "dependencies": {},
       "hash": "bb3d5067e49e403d8b8ba15c036d313b4dd2c696"
     },
+    "dev.tashi.network.transport": {
+      "version": "file:dev.tashi.network.transport",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "jp.hadashikick.vcontainer": {
       "version": "1.11.0",
       "depth": 0,

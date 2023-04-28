@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
+using JetBrains.Annotations;
 using Unity.Services.Lobbies.Models;
+using UnityEngine;
+using Tashi.ConsensusEngine;
 
 namespace Unity.BossRoom.UnityServices.Lobbies
 {
@@ -14,7 +18,7 @@ namespace Unity.BossRoom.UnityServices.Lobbies
 
         public LocalLobbyUser()
         {
-            m_UserData = new UserData(isHost: false, displayName: null, id: null);
+            m_UserData = new UserData(isHost: false, displayName: null, id: null, addressBookEntry: null);
         }
 
         public struct UserData
@@ -22,12 +26,14 @@ namespace Unity.BossRoom.UnityServices.Lobbies
             public bool IsHost { get; set; }
             public string DisplayName { get; set; }
             public string ID { get; set; }
+            public AddressBookEntry? AddressBookEntry { get; set; }
 
-            public UserData(bool isHost, string displayName, string id)
+            public UserData(bool isHost, string displayName, string id, AddressBookEntry? addressBookEntry)
             {
                 IsHost = isHost;
                 DisplayName = displayName;
                 ID = id;
+                AddressBookEntry = addressBookEntry;
             }
         }
 
@@ -35,7 +41,7 @@ namespace Unity.BossRoom.UnityServices.Lobbies
 
         public void ResetState()
         {
-            m_UserData = new UserData(false, m_UserData.DisplayName, m_UserData.ID);
+            m_UserData = new UserData(false, m_UserData.DisplayName, m_UserData.ID, m_UserData.AddressBookEntry);
         }
 
         /// <summary>
@@ -47,6 +53,7 @@ namespace Unity.BossRoom.UnityServices.Lobbies
             IsHost = 1,
             DisplayName = 2,
             ID = 4,
+            AddressBookEntry = 5,
         }
 
         UserMembers m_LastChanged;
@@ -93,6 +100,19 @@ namespace Unity.BossRoom.UnityServices.Lobbies
             }
         }
 
+        public AddressBookEntry? AddressBookEntry
+        {
+            get => m_UserData.AddressBookEntry;
+            set
+            {
+                if (!Equals(m_UserData.AddressBookEntry, value))
+                {
+                    m_UserData.AddressBookEntry = value;
+                    m_LastChanged = UserMembers.AddressBookEntry;
+                    OnChanged();
+                }
+            }
+        }
 
         public void CopyDataFrom(LocalLobbyUser lobby)
         {
@@ -100,7 +120,8 @@ namespace Unity.BossRoom.UnityServices.Lobbies
             int lastChanged = // Set flags just for the members that will be changed.
                 (m_UserData.IsHost == data.IsHost ? 0 : (int)UserMembers.IsHost) |
                 (m_UserData.DisplayName == data.DisplayName ? 0 : (int)UserMembers.DisplayName) |
-                (m_UserData.ID == data.ID ? 0 : (int)UserMembers.ID);
+                (m_UserData.ID == data.ID ? 0 : (int)UserMembers.ID) |
+                (Equals(m_UserData.AddressBookEntry, data.AddressBookEntry) ? 0 : (int)UserMembers.AddressBookEntry);
 
             if (lastChanged == 0) // Ensure something actually changed.
             {
@@ -118,10 +139,32 @@ namespace Unity.BossRoom.UnityServices.Lobbies
             changed?.Invoke(this);
         }
 
-        public Dictionary<string, PlayerDataObject> GetDataForUnityServices() =>
-            new Dictionary<string, PlayerDataObject>()
+        public Dictionary<string, PlayerDataObject> GetDataForUnityServices()
+        {
+            var result = new Dictionary<string, PlayerDataObject>()
             {
-                {"DisplayName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, DisplayName)},
+                { "DisplayName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, DisplayName) },
             };
+
+            if (AddressBookEntry is not null)
+            {
+                result.Add(
+                    "PublicKey",
+                    new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member,
+                        Convert.ToBase64String(AddressBookEntry?.PublicKey.AsDer()))
+                );
+
+                result.Add(
+                    "BoundAddress",
+                    new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, AddressBookEntry?.Address.Address.ToString()));
+
+                result.Add(
+                    "BoundPort",
+                    new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, AddressBookEntry?.Address.Port.ToString())
+                );
+            }
+
+            return result;
+        }
     }
 }

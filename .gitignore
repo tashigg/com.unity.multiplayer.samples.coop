@@ -86,3 +86,5 @@ InitCodeMarker
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+
+/Packages/dev.tashi.network.transport

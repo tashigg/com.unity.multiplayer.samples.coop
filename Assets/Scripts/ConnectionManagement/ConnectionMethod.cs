@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Tashi.NetworkTransport;
 using Unity.BossRoom.UnityServices.Lobbies;
 using Unity.BossRoom.Utils;
 using Unity.Netcode.Transports.UTP;
@@ -55,6 +56,49 @@ namespace Unity.BossRoom.ConnectionManagement
             }
 
             return AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : ClientPrefs.GetGuid() + m_ProfileManager.Profile;
+        }
+    }
+
+    /// <summary>
+    /// A mesh connection where the client/host concept is only used to fit Unity's model.
+    /// </summary>
+    class ConnectionMethodMesh : ConnectionMethodBase
+    {
+        LobbyServiceFacade m_LobbyServiceFacade;
+        LocalLobby m_LocalLobby;
+        LocalLobbyUser m_LocalUser;
+
+        public ConnectionMethodMesh(LobbyServiceFacade lobbyServiceFacade,
+            LocalLobby localLobby, LocalLobbyUser localUser, ConnectionManager connectionManager,
+            ProfileManager profileManager, string playerName)
+            : base(connectionManager, profileManager, playerName)
+        {
+            m_ConnectionManager = connectionManager;
+            m_LobbyServiceFacade = lobbyServiceFacade;
+            m_LocalLobby = localLobby;
+            m_LocalUser = localUser;
+
+            SetConnectionPayload(GetPlayerId(), m_PlayerName);
+        }
+
+        public override async Task SetupClientConnectionAsync()
+        {
+            await SetupHostConnectionAsync();
+        }
+
+        public override async Task SetupHostConnectionAsync()
+        {
+            // Once the transport has bound its listener we need to announce it to the lobby.
+
+            var transport = (TashiNetworkTransport)m_ConnectionManager.NetworkManager.NetworkConfig.NetworkTransport;
+            transport.OnPlatformInit += delegate
+            {
+                Task.Run(async () =>
+                {
+                    m_LocalUser.AddressBookEntry = transport.AddressBookEntry;
+                    await m_LobbyServiceFacade.UpdatePlayerDataAsync(m_LocalUser.GetDataForUnityServices());
+                });
+            };
         }
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using Tashi.NetworkTransport;
 using Unity.BossRoom.Infrastructure;
 using Unity.BossRoom.UnityServices.Lobbies;
 using Unity.Multiplayer.Samples.BossRoom;
@@ -19,6 +20,8 @@ namespace Unity.BossRoom.ConnectionManagement
         [Inject]
         LobbyServiceFacade m_LobbyServiceFacade;
         [Inject]
+        LocalLobby m_LocalLobby;
+        [Inject]
         IPublisher<ConnectionEventMessage> m_ConnectionEventPublisher;
 
         // used in ApprovalCheck. This is intended as a bit of light protection against DOS attacks that rely on sending silly big buffers of garbage.
@@ -36,6 +39,8 @@ namespace Unity.BossRoom.ConnectionManagement
             {
                 m_LobbyServiceFacade.BeginTracking();
             }
+
+            m_LocalLobby.changed += OnLobbyChanged;
         }
 
         public override void Exit()
@@ -148,6 +153,19 @@ namespace Unity.BossRoom.ConnectionManagement
 
             return SessionManager<SessionPlayerData>.Instance.IsDuplicateConnection(connectionPayload.playerId) ?
                 ConnectStatus.LoggedInAgain : ConnectStatus.Success;
+        }
+
+        private void OnLobbyChanged(LocalLobby lobby)
+        {
+            var transport = (TashiNetworkTransport)m_ConnectionManager.NetworkManager.NetworkConfig.NetworkTransport;
+            foreach (var user in m_LocalLobby.LobbyUsers.Values)
+            {
+                transport.AddAddressBookEntry(user.AddressBookEntry.GetValueOrDefault());
+                if (user.IsHost)
+                {
+                    transport.HostPublicKey = user.AddressBookEntry?.PublicKey;
+                }
+            }
         }
     }
 }

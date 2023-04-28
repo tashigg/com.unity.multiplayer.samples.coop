@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
+using Tashi.ConsensusEngine;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
 
@@ -250,13 +252,52 @@ namespace Unity.BossRoom.UnityServices.Lobbies
                     }
                 }
 
+                // LB FIXME: Consider serializing AddressBookEntry
+
+                string displayName = default;
+                IPAddress? boundAddress = default;
+                ushort boundPort = 0;
+                PublicKey? publicKey = default;
+
+                if (player.Data != null)
+                {
+                    if (player.Data.TryGetValue("DisplayName", out var displayNameObj))
+                    {
+                        displayName = displayNameObj.Value;
+                    }
+
+                    if (player.Data.TryGetValue("BoundAddress", out var boundAddressObj))
+                    {
+                        IPAddress.TryParse(boundAddressObj.Value, out boundAddress);
+                    }
+
+                    if (player.Data.TryGetValue("BoundPort", out var boundPortObj))
+                    {
+                        ushort.TryParse(boundPortObj.Value, out boundPort);
+                    }
+
+                    if (player.Data.TryGetValue("PublicKey", out var publicKeyObj))
+                    {
+                        publicKey = PublicKey.FromDer(Convert.FromBase64String(publicKeyObj.Value));
+                    }
+                }
+
+                if (boundAddress is null)
+                {
+                    continue;
+                }
                 // If the player isn't connected to Relay, get the most recent data that the lobby knows.
                 // (If we haven't seen this player yet, a new local representation of the player will have already been added by the LocalLobby.)
                 var incomingData = new LocalLobbyUser
                 {
                     IsHost = lobby.HostId.Equals(player.Id),
-                    DisplayName = player.Data?.ContainsKey("DisplayName") == true ? player.Data["DisplayName"].Value : default,
-                    ID = player.Id
+                    DisplayName = displayName,
+                    ID = player.Id,
+                    AddressBookEntry = new AddressBookEntry
+                    {
+                        Address = new IPEndPoint(boundAddress, boundPort),
+                        PublicKey = publicKey,
+                    }
                 };
 
                 lobbyUsers.Add(incomingData.ID, incomingData);
