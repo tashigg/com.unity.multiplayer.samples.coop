@@ -1,0 +1,103 @@
+name: Boss Room
+
+# See https://game.ci/docs/github/getting-started
+
+on:
+  workflow_dispatch:
+    inputs:
+      tashi-boss-room-branch:
+        description: 'Tashi Boss Room branch'
+        required: true
+        default: 'main'
+      tnt-run-number:
+        description: 'TNT run number to download artifacts from'
+        required: true
+
+jobs:
+  license-availability-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: game-ci/unity-activate@v2
+        env:
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+      - uses: game-ci/unity-return-license@v2
+
+  build:
+    needs: [license-availability-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v3
+        with:
+          branch: ${{ github.event.inputs.tashi-boss-room-branch }}
+
+      - name: Create LFS file list
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+
+      - name: LFS cache
+        uses: actions/cache@v2
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: ubuntu-latest-lfs-${{ hashFiles('.lfs-assets-id') }}
+
+      - name: Git LFS Pull
+        run: |
+          git lfs pull
+          git add .
+          git reset --hard
+
+      # These are kind of public. They're certainly embedded in the build
+      # output, but we shouldn't make them freely available in the git repo.
+      - name: Set up Unity services
+        run: |
+          sed -i 's/cloudProjectId: /cloudProjectId: ${{ secrets.UNITY_CLOUD_PROJECT_ID }}/' ProjectSettings/ProjectSettings.asset
+          sed -i 's/organizationId: /organizationId: ${{ secrets.UNITY_ORGANIZATION_ID }}/' ProjectSettings/ProjectSettings.asset
+          sed -i 's/projectName: /projectName: ${{ secrets.UNITY_PROJECT_NAME }}/' ProjectSettings/ProjectSettings.asset
+
+      - name: Download TNT artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{ secrets.TNT_ARTIFACT_DOWNLOAD_PAT }}
+          repo: tashigg/tashi-network-transport
+          workflow: build.yml
+          run_number: ${{ github.events.inputs.tnt-run-number }}
+          name: tnt
+
+      - name: Move TNT to Packages
+        run: |
+            unzip *.zip
+            mv dev.tashi.network.transport Packages/
+
+      - name: Unity editor cache
+        uses: actions/cache@v2
+        with:
+          path: Library
+          key: Library-StandaloneOSX
+
+      - name: Build for macOS
+        # FIXME: v2 when this is fixed https://github.com/game-ci/unity-actions/issues/162#issuecomment-1536882768
+        uses: game-ci/unity-builder@v2
+        env:
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: StandaloneOSX
+          allowDirtyBuild: true
+
+      # The `upload-artifact` action doesn't preserve permissions.
+      - name: Archive the artifact
+        # I'm not sure why `build/` files are created as root.
+        run: |
+          sudo mv build/StandaloneOSX/StandaloneOSX.app BossRoom.app
+          zip -r boss-room-macOS.zip BossRoom.app
+
+      - name: Upload the artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: boss-room-macOS
+          path: boss-room-macOS.zip
