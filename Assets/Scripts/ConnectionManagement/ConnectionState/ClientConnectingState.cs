@@ -102,10 +102,13 @@ namespace Unity.BossRoom.ConnectionManagement
             var transport = (TashiNetworkTransport)m_ConnectionManager.NetworkManager.NetworkConfig.NetworkTransport;
             foreach (var user in m_LocalLobby.LobbyUsers.Values)
             {
-                transport.AddAddressBookEntry(user.AddressBookEntry.GetValueOrDefault());
-                if (user.IsHost)
+                if (user.AddressBookEntry is not null)
                 {
-                    transport.HostPublicKey = user.AddressBookEntry?.PublicKey;
+                    transport.AddAddressBookEntry(user.AddressBookEntry);
+                    if (user.IsHost)
+                    {
+                        transport.HostPublicKey = user.AddressBookEntry?.PublicKey;
+                    }
                 }
             }
         }

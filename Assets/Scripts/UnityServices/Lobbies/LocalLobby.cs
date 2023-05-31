@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -252,12 +254,8 @@ namespace Unity.BossRoom.UnityServices.Lobbies
                     }
                 }
 
-                // LB FIXME: Consider serializing AddressBookEntry
-
                 string displayName = default;
-                IPAddress? boundAddress = default;
-                ushort boundPort = 0;
-                PublicKey? publicKey = default;
+                AddressBookEntry? addressBookEntry = null;
 
                 if (player.Data != null)
                 {
@@ -266,26 +264,12 @@ namespace Unity.BossRoom.UnityServices.Lobbies
                         displayName = displayNameObj.Value;
                     }
 
-                    if (player.Data.TryGetValue("BoundAddress", out var boundAddressObj))
+                    if (player.Data.TryGetValue("AddressBookEntry", out var addressBookEntryObject))
                     {
-                        IPAddress.TryParse(boundAddressObj.Value, out boundAddress);
-                    }
-
-                    if (player.Data.TryGetValue("BoundPort", out var boundPortObj))
-                    {
-                        ushort.TryParse(boundPortObj.Value, out boundPort);
-                    }
-
-                    if (player.Data.TryGetValue("PublicKey", out var publicKeyObj))
-                    {
-                        publicKey = PublicKey.FromDer(Convert.FromBase64String(publicKeyObj.Value));
+                        addressBookEntry = AddressBookEntry.Deserialize(addressBookEntryObject.Value);
                     }
                 }
 
-                if (boundAddress is null)
-                {
-                    continue;
-                }
                 // If the player isn't connected to Relay, get the most recent data that the lobby knows.
                 // (If we haven't seen this player yet, a new local representation of the player will have already been added by the LocalLobby.)
                 var incomingData = new LocalLobbyUser
@@ -293,11 +277,7 @@ namespace Unity.BossRoom.UnityServices.Lobbies
                     IsHost = lobby.HostId.Equals(player.Id),
                     DisplayName = displayName,
                     ID = player.Id,
-                    AddressBookEntry = new AddressBookEntry
-                    {
-                        Address = new IPEndPoint(boundAddress, boundPort),
-                        PublicKey = publicKey,
-                    }
+                    AddressBookEntry = addressBookEntry,
                 };
 
                 lobbyUsers.Add(incomingData.ID, incomingData);
