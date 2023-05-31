@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
-using JetBrains.Annotations;
 using Unity.Services.Lobbies.Models;
-using UnityEngine;
 using Tashi.ConsensusEngine;
 
 namespace Unity.BossRoom.UnityServices.Lobbies
@@ -149,18 +146,8 @@ namespace Unity.BossRoom.UnityServices.Lobbies
             if (AddressBookEntry is not null)
             {
                 result.Add(
-                    "PublicKey",
-                    new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member,
-                        Convert.ToBase64String(AddressBookEntry?.PublicKey.AsDer()))
-                );
-
-                result.Add(
-                    "BoundAddress",
-                    new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, AddressBookEntry?.Address.Address.ToString()));
-
-                result.Add(
-                    "BoundPort",
-                    new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, AddressBookEntry?.Address.Port.ToString())
+                    "AddressBookEntry",
+                    new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, AddressBookEntry.Serialize())
                 );
             }
 
