@@ -104,11 +104,7 @@ namespace Unity.BossRoom.ConnectionManagement
             {
                 if (user.AddressBookEntry is not null)
                 {
-                    transport.AddAddressBookEntry(user.AddressBookEntry);
-                    if (user.IsHost)
-                    {
-                        transport.HostPublicKey = user.AddressBookEntry?.PublicKey;
-                    }
+                    transport.AddAddressBookEntry(user.AddressBookEntry, user.IsHost);
                 }
             }
         }
